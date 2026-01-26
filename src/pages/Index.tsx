@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { FileCode2, Terminal, CheckSquare, Sparkles, Settings2, FileText, Globe } from "lucide-react";
+import { FileCode2, Terminal, CheckSquare, Sparkles, Settings2, FileText, Globe, Database } from "lucide-react";
 import { FileUploader } from "@/components/FileUploader";
 import { TerminalOutput, TerminalLine } from "@/components/TerminalOutput";
 import { CodeEditor } from "@/components/CodeEditor";
@@ -7,6 +7,7 @@ import { ValidationPanel, ValidationStatus } from "@/components/ValidationPanel"
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 const DOCUMENT_TYPES = [
   { value: "factura", label: "Factura" },
@@ -25,6 +26,12 @@ const COUNTRIES = [
   { value: "ec", label: "Ecuador" },
 ];
 
+const EXISTING_XSLT_RECORDS = [
+  { value: "xslt_mx_factura_v1", label: "MX - Factura v1.0" },
+  { value: "xslt_co_factura_v2", label: "CO - Factura v2.1" },
+  { value: "xslt_pe_nota_credito", label: "PE - Nota Crédito v1.0" },
+];
+
 const Index = () => {
   // File states
   const [xsdFile, setXsdFile] = useState<File | null>(null);
@@ -34,8 +41,12 @@ const Index = () => {
   
   // New fields
   const [documentType, setDocumentType] = useState<string>("");
-  const [existingXsltFile, setExistingXsltFile] = useState<File | null>(null);
   const [country, setCountry] = useState<string>("");
+  
+  // CONTEXTO_BASE mode
+  const [isOptimizeMode, setIsOptimizeMode] = useState(false);
+  const [existingXsltFile, setExistingXsltFile] = useState<File | null>(null);
+  const [selectedXsltRecord, setSelectedXsltRecord] = useState<string>("");
 
   // Processing states
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
@@ -184,9 +195,26 @@ const Index = () => {
           </div>
           <h1 className="text-lg font-semibold text-foreground">XSLT Generator Agent</h1>
         </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-          <span>Agente activo</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-muted-foreground" />
+            <Select value={country} onValueChange={setCountry}>
+              <SelectTrigger className="w-32 h-8 bg-secondary border-border text-sm">
+                <SelectValue placeholder="País" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span>Agente activo</span>
+          </div>
         </div>
       </header>
 
@@ -245,41 +273,68 @@ const Index = () => {
             {/* CONTEXTO_BASE Section */}
             <div className="space-y-3 p-3 rounded-lg border border-border bg-secondary/30">
               <Label className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Globe className="w-4 h-4 text-primary" />
+                <FileCode2 className="w-4 h-4 text-primary" />
                 CONTEXTO_BASE
               </Label>
-              <p className="text-xs text-muted-foreground">
-                Si existe un XSLT previo, sube el archivo y selecciona el país de origen.
-              </p>
               
-              <FileUploader
-                label="XSLT Previo"
-                accept=".xslt,.xsl"
-                description="Opcional - XSLT existente"
-                onFileSelect={setExistingXsltFile}
-              />
-              
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">País de origen</Label>
-                <Select value={country} onValueChange={setCountry}>
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue placeholder="Selecciona el país" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Mode Switch */}
+              <div className="flex items-center justify-between p-2 rounded bg-secondary">
+                <span className="text-xs text-muted-foreground">
+                  {isOptimizeMode ? "Optimizar XSLT existente" : "Generar desde cero"}
+                </span>
+                <Switch
+                  checked={isOptimizeMode}
+                  onCheckedChange={setIsOptimizeMode}
+                />
               </div>
               
-              {existingXsltFile && country && (
-                <div className="p-2 rounded bg-primary/10 border border-primary/20">
-                  <p className="text-xs text-primary">
-                    ℹ️ Se aplicará la instrucción: "Mantén la lógica existente y solo modifica los nodos afectados por el nuevo mapeo"
+              {isOptimizeMode && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-xs text-muted-foreground">
+                    Selecciona un XSLT existente de la base de datos o sube uno nuevo.
                   </p>
+                  
+                  {/* Select from database */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Database className="w-3 h-3" />
+                      Desde base de datos
+                    </Label>
+                    <Select value={selectedXsltRecord} onValueChange={setSelectedXsltRecord}>
+                      <SelectTrigger className="bg-secondary border-border">
+                        <SelectValue placeholder="Selecciona un XSLT" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXISTING_XSLT_RECORDS.map((record) => (
+                          <SelectItem key={record.value} value={record.value}>
+                            {record.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">o</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  
+                  {/* Upload XSLT */}
+                  <FileUploader
+                    label="Subir XSLT"
+                    accept=".xslt,.xsl"
+                    description="Cargar archivo XSLT"
+                    onFileSelect={setExistingXsltFile}
+                  />
+                  
+                  {(existingXsltFile || selectedXsltRecord) && (
+                    <div className="p-2 rounded bg-primary/10 border border-primary/20">
+                      <p className="text-xs text-primary">
+                        ℹ️ Se aplicará: "Mantén la lógica existente y solo modifica los nodos afectados por el nuevo mapeo"
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
