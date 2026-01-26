@@ -1,10 +1,29 @@
 import { useState, useCallback } from "react";
-import { FileCode2, Terminal, CheckSquare, Sparkles, Settings2 } from "lucide-react";
+import { FileCode2, Terminal, CheckSquare, Sparkles, Settings2, FileText, Globe } from "lucide-react";
 import { FileUploader } from "@/components/FileUploader";
 import { TerminalOutput, TerminalLine } from "@/components/TerminalOutput";
 import { CodeEditor } from "@/components/CodeEditor";
 import { ValidationPanel, ValidationStatus } from "@/components/ValidationPanel";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
+const DOCUMENT_TYPES = [
+  { value: "factura", label: "Factura" },
+  { value: "nota_credito", label: "Nota de Crédito" },
+  { value: "nota_debito", label: "Nota de Débito" },
+  { value: "recibo", label: "Recibo" },
+  { value: "guia_remision", label: "Guía de Remisión" },
+];
+
+const COUNTRIES = [
+  { value: "mx", label: "México" },
+  { value: "co", label: "Colombia" },
+  { value: "pe", label: "Perú" },
+  { value: "cl", label: "Chile" },
+  { value: "ar", label: "Argentina" },
+  { value: "ec", label: "Ecuador" },
+];
 
 const Index = () => {
   // File states
@@ -12,6 +31,11 @@ const Index = () => {
   const [mappingFile, setMappingFile] = useState<File | null>(null);
   const [xmlFile, setXmlFile] = useState<File | null>(null);
   const [instructions, setInstructions] = useState("");
+  
+  // New fields
+  const [documentType, setDocumentType] = useState<string>("");
+  const [existingXsltFile, setExistingXsltFile] = useState<File | null>(null);
+  const [country, setCountry] = useState<string>("");
 
   // Processing states
   const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([]);
@@ -187,12 +211,79 @@ const Index = () => {
               description="Excel o JSON con reglas"
               onFileSelect={setMappingFile}
             />
+            
+            {/* Tipo de Documento */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                Tipo de Documento
+              </Label>
+              <Select value={documentType} onValueChange={setDocumentType}>
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Selecciona el tipo de documento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DOCUMENT_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Define el tipo de documento fiscal a generar
+              </p>
+            </div>
+
             <FileUploader
               label="XML GUF de Ejemplo"
               accept=".xml"
               description="Opcional - para pruebas"
               onFileSelect={setXmlFile}
             />
+
+            {/* CONTEXTO_BASE Section */}
+            <div className="space-y-3 p-3 rounded-lg border border-border bg-secondary/30">
+              <Label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Globe className="w-4 h-4 text-primary" />
+                CONTEXTO_BASE
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Si existe un XSLT previo, sube el archivo y selecciona el país de origen.
+              </p>
+              
+              <FileUploader
+                label="XSLT Previo"
+                accept=".xslt,.xsl"
+                description="Opcional - XSLT existente"
+                onFileSelect={setExistingXsltFile}
+              />
+              
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">País de origen</Label>
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger className="bg-secondary border-border">
+                    <SelectValue placeholder="Selecciona el país" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {existingXsltFile && country && (
+                <div className="p-2 rounded bg-primary/10 border border-primary/20">
+                  <p className="text-xs text-primary">
+                    ℹ️ Se aplicará la instrucción: "Mantén la lógica existente y solo modifica los nodos afectados por el nuevo mapeo"
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">
                 Instrucciones Adicionales
